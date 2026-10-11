@@ -5,7 +5,7 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import { importWorkbook } from '../src/atlas/importXlsx.js';
 import { buildCase, run, assess } from '../src/atlas/index.js';
-const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data') + path.sep;
+const dataDir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data');
 let fail = 0;
 const t = (n, c, x = '') => { if (!c) fail++; console.log((c ? 'PASS ' : 'FAIL ') + n, x); };
 const CASES = [
@@ -20,7 +20,7 @@ const CASES = [
 ];
 for (const [file, system, kind, expLife, src, geo = 'KPTC'] of CASES) {
   const tag = `${geo}/${kind}/${system}`;
-  const st = importWorkbook(new Uint8Array(fs.readFileSync(dir + file)));
+  const st = importWorkbook(new Uint8Array(fs.readFileSync(path.join(dataDir, file))));
   t(`${tag}: unit system / load type / crack case read`, st.system === system && st.loadType === kind && st.geometry === geo, `${st.system} ${st.loadType} ${st.geometry}`);
   const allowed = kind === 'VARIABLE' ? ['min_scale', 'max_scale'] : [];
   t(`${tag}: every schema field found in the workbook`, st.missingFields.every(m => allowed.includes(m)), st.missingFields.join(','));
