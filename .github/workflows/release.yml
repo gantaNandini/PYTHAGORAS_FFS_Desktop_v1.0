@@ -1,0 +1,57 @@
+name: Build & Release Windows Installer
+
+on:
+  push:
+    tags:
+      - 'v*'          # trigger on version tags like v1.0.0, v3.0.0
+    branches:
+      - main          # also build on every push to main (no release upload)
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js ───────────────────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ── 3. Install dependencies ───────────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── 4. Build React app ────────────────────────────────────────────────────
+      - name: Build React (production)
+        run: npm run build
+        env:
+          CI: false          # prevent react-scripts from treating warnings as errors
+
+      # ── 5. Build Windows installer with electron-builder ─────────────────────
+      - name: Build Windows .exe (NSIS installer + portable)
+        run: npx electron-builder --win --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 6. List what was produced ─────────────────────────────────────────────
+      - name: List dist output
+        run: Get-ChildItem dist | Select-Object Name, Length
+
+      # ── 7. Upload as GitHub Release (only when a version tag was pushed) ──────
+      - name: Create GitHub Release and upload assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PYTHAGORAS FFS ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
