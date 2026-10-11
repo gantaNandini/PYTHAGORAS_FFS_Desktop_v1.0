@@ -1,9 +1,11 @@
 // End-to-end: import the REAL ATLAS input workbooks (SI as shipped, FPS as produced by ATLAS convert_units.py),
 // solve with the JavaScript port and compare with the results of the original Python engine.
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { importWorkbook } from '../src/atlas/importXlsx.js';
 import { buildCase, run, assess } from '../src/atlas/index.js';
-const dir = new URL('./data/', import.meta.url).pathname;
+const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data') + path.sep;
 let fail = 0;
 const t = (n, c, x = '') => { if (!c) fail++; console.log((c ? 'PASS ' : 'FAIL ') + n, x); };
 const CASES = [
