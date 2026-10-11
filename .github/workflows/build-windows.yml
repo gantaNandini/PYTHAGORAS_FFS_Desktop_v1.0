@@ -1,0 +1,39 @@
+name: Build Windows .exe
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run tests
+        run: npm test
+      - name: Build installer and portable .exe
+        env:
+          CI: 'false'
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist:win
+      - name: Upload .exe files
+        uses: actions/upload-artifact@v4
+        with:
+          name: PYTHAGORAS-FFS-Windows
+          path: |
+            dist/*.exe
+      - name: Attach to GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.exe

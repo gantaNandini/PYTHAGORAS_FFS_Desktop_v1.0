@@ -1,0 +1,102 @@
+{
+  "name": "pythagoras-ffs",
+  "version": "3.0.0",
+  "description": "PYTHAGORAS ENGINEERING – Fitness-for-Service fracture mechanics and crack growth assessment (API 579-1 / ASME FFS-1 2021, Part 9). plate through-wall crack (KPTC/RPTC) and surface cracks (KPSCL1/KPSCL2), Level 2 FAD, Level 3 and Remaining Life.",
+  "author": "PYTHAGORAS ENGINEERING <info@pythagorasengineering.com>",
+  "main": "electron/main.js",
+  "homepage": "./",
+  "private": true,
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test:engine": "node tests/test_oracle.mjs && node tests/test_model.mjs && node tests/test_import.mjs && node tests/test_export.mjs",
+    "electron:dev": "concurrently -k \"cross-env BROWSER=none react-scripts start\" \"wait-on http://localhost:3000 && cross-env ELECTRON_START_URL=http://localhost:3000 electron .\"",
+    "electron:run": "npm run build && electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "test": "npm run test:engine"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1",
+    "recharts": "^2.10.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^28.1.0",
+    "electron-builder": "^24.13.3",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.pythagorasengineering.ffs",
+    "productName": "PYTHAGORAS FFS",
+    "copyright": "PYTHAGORAS ENGINEERING",
+    "asar": true,
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist"
+    },
+    "files": [
+      "build/**/*",
+      "electron/**/*",
+      "assets/icon.png",
+      "package.json",
+      "!**/*.map"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "pfs",
+        "name": "PYTHAGORAS FFS Analysis",
+        "description": "PYTHAGORAS FFS Analysis",
+        "role": "Editor"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.png",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Science"
+    }
+  },
+  "browserslist": {
+    "production": [
+      "last 1 chrome version"
+    ],
+    "development": [
+      "last 1 chrome version"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  }
+}
