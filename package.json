@@ -37,6 +37,9 @@
     "productName": "PYTHAGORAS FFS",
     "copyright": "PYTHAGORAS ENGINEERING",
     "asar": true,
+    "extraMetadata": {
+      "main": "electron/main.js"
+    },
     "directories": {
       "buildResources": "assets",
       "output": "dist"
