@@ -3,9 +3,9 @@ name: Build & Release Windows Installer
 on:
   push:
     tags:
-      - 'v*'          # trigger on version tags like v1.0.0, v3.0.0
+      - 'v*'
     branches:
-      - main          # also build on every push to main (no release upload)
+      - main
 
 jobs:
   build:
@@ -22,27 +22,96 @@ jobs:
         with:
           node-version: '20'
 
-      # ── 3. Install dependencies ───────────────────────────────────────────────
+      # ── 3. Regenerate icon.ico from icon.png (ensures 256x256 is present) ────
+      - name: Regenerate icon.ico with all required sizes
+        shell: pwsh
+        run: |
+          # Use the .NET System.Drawing to create a proper multi-size ICO
+          # that satisfies electron-builder's sanity check (needs 256x256)
+          Add-Type -AssemblyName System.Drawing
+
+          $pngPath  = "assets\icon.png"
+          $icoPath  = "assets\icon.ico"
+
+          # Load source PNG
+          $src = [System.Drawing.Image]::FromFile((Resolve-Path $pngPath))
+
+          # Sizes required by electron-builder for a valid Windows icon
+          $sizes = @(16, 24, 32, 48, 64, 128, 256)
+
+          $ms = New-Object System.IO.MemoryStream
+          $bw = New-Object System.IO.BinaryWriter($ms)
+
+          # ICO header
+          $bw.Write([uint16]0)            # reserved
+          $bw.Write([uint16]1)            # type = ICO
+          $bw.Write([uint16]$sizes.Count) # number of images
+
+          # Calculate data offset: header(6) + directory entries(16 * count)
+          $dataOffset = 6 + 16 * $sizes.Count
+          $imageData  = @()
+
+          foreach ($sz in $sizes) {
+            $bmp = New-Object System.Drawing.Bitmap($sz, $sz)
+            $g   = [System.Drawing.Graphics]::FromImage($bmp)
+            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $g.DrawImage($src, 0, 0, $sz, $sz)
+            $g.Dispose()
+
+            $imgMs = New-Object System.IO.MemoryStream
+            $bmp.Save($imgMs, [System.Drawing.Imaging.ImageFormat]::Png)
+            $bmp.Dispose()
+            $data = $imgMs.ToArray()
+            $imageData += , $data
+          }
+
+          # Write directory entries
+          $offset = $dataOffset
+          for ($i = 0; $i -lt $sizes.Count; $i++) {
+            $sz   = $sizes[$i]
+            $data = $imageData[$i]
+            $bw.Write([byte]($sz -eq 256 ? 0 : $sz))  # width  (0 = 256)
+            $bw.Write([byte]($sz -eq 256 ? 0 : $sz))  # height (0 = 256)
+            $bw.Write([byte]0)     # color count
+            $bw.Write([byte]0)     # reserved
+            $bw.Write([uint16]1)   # planes
+            $bw.Write([uint16]32)  # bit count
+            $bw.Write([uint32]$data.Length)
+            $bw.Write([uint32]$offset)
+            $offset += $data.Length
+          }
+
+          # Write image data
+          foreach ($data in $imageData) { $bw.Write($data) }
+          $bw.Flush()
+
+          [System.IO.File]::WriteAllBytes((Resolve-Path "assets" | Join-Path -ChildPath "icon.ico"), $ms.ToArray())
+          $src.Dispose()
+
+          $finalSize = (Get-Item $icoPath).Length
+          Write-Host "Generated icon.ico: $finalSize bytes with sizes: $($sizes -join ', ')px"
+
+      # ── 4. Install dependencies ───────────────────────────────────────────────
       - name: Install dependencies
         run: npm install
 
-      # ── 4. Build React app ────────────────────────────────────────────────────
+      # ── 5. Build React app ────────────────────────────────────────────────────
       - name: Build React (production)
         run: npm run build
         env:
-          CI: false          # prevent react-scripts from treating warnings as errors
+          CI: false
 
-      # ── 5. Build Windows installer with electron-builder ─────────────────────
+      # ── 6. Build Windows installer ───────────────────────────────────────────
       - name: Build Windows .exe (NSIS installer + portable)
         run: npx electron-builder --win --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # ── 6. List what was produced ─────────────────────────────────────────────
+      # ── 7. List what was produced ─────────────────────────────────────────────
       - name: List dist output
         run: Get-ChildItem dist | Select-Object Name, Length
 
-      # ── 7. Upload as GitHub Release (only when a version tag was pushed) ──────
+      # ── 8. Upload as GitHub Release (only on version tags) ────────────────────
       - name: Create GitHub Release and upload assets
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
